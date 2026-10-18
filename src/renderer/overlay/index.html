@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws:"
+    />
+    <title>选择区域</title>
+    <link rel="stylesheet" href="../common/tokens.css" />
+    <style>
+      html,
+      body {
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="overlay-root" id="overlay">
+      <div class="overlay-hint" id="hint">拖拽选择录制区域 · Esc 取消</div>
+      <div class="overlay-selection" id="selection" style="display: none"></div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

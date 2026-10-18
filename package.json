@@ -1,0 +1,58 @@
+{
+  "name": "dsh-screen-recorder",
+  "version": "1.0.0",
+  "description": "DSH 屏幕录制器 - Windows 托盘常驻录屏工具 (Electron + TypeScript)",
+  "main": "./out/main/index.js",
+  "author": "DSH",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "compile": "electron-vite build",
+    "build": "npm run compile && electron-builder --win",
+    "preview": "electron-vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "eslint": "^10.0.0",
+    "mediabunny": "^1.61.6",
+    "prettier": "^3.6.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "build": {
+    "appId": "com.dsh.screen-recorder",
+    "productName": "DSH 屏幕录制器",
+    "asar": true,
+    "files": ["out/**/*", "package.json"],
+    "extraResources": [{ "from": "build/icon.ico", "to": "icon.ico" }],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -13,6 +13,7 @@ import type {
   StopCaptureResult
 } from '@shared/types'
 import type { FileSink } from './fileSink'
+import { patchMp4Duration } from './mp4Duration'
 import { isRegionValid, toPhysical } from './regionMath'
 
 export interface CaptureWindowLike {
@@ -393,6 +394,16 @@ export class RecordingSessionManager {
       const bytesWritten = await sink.finalize()
       if (process.env.DSH_DIAGNOSE === '1') {
         console.error('[diag] sink finalized', bytesWritten)
+      }
+      try {
+        const duration = await patchMp4Duration(outputPath)
+        if (process.env.DSH_DIAGNOSE === '1') {
+          console.error('[diag] duration patched', duration)
+        }
+      } catch (error) {
+        if (process.env.DSH_DIAGNOSE === '1') {
+          console.error('[diag] duration patch failed', error)
+        }
       }
       if (payload.ok) {
         const check = await this.deps.validateMp4(outputPath)

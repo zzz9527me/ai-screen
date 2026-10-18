@@ -67,6 +67,8 @@ async function waitForWindow(
  * collected so a green run means no user-visible errors were emitted.
  */
 export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
+  const recordHoldMs = Number(process.env.DSH_DIAGNOSE_HOLD_MS ?? '1800')
+  const hold = Number.isFinite(recordHoldMs) && recordHoldMs > 0 ? recordHoldMs : 1800
   const steps: Step[] = []
   const consoleEntries: ConsoleEntry[] = []
   const pageEvents: string[] = []
@@ -200,7 +202,7 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
     await wait(200)
     record('flow.fullscreen.startClick', await clickButton(modeWin, '开始录制'))
     console.error('[diag] before wait after start')
-    await wait(1800)
+    await wait(hold)
     console.error('[diag] after wait after start')
     record('flow.fullscreen.stateBeforeStop', ctx.getState())
     const fullscreenStop = await Promise.race([
@@ -230,7 +232,7 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
       )
       await wait(300)
       record('flow.window.startClick', await clickButton(modeWin, '开始录制'))
-      await wait(1800)
+      await wait(hold)
       const windowStop = await ctx.stopRecording()
       record('flow.window.stop', windowStop)
       await wait(600)
@@ -291,7 +293,7 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
       record('flow.region.pickResult', pickResult)
       record('flow.region.overlayClosed', overlay.isDestroyed())
       record('flow.region.startClick', await clickButton(modeWin, '开始录制'))
-      await wait(1800)
+      await wait(hold)
       const regionStop = await ctx.stopRecording()
       record('flow.region.stop', regionStop)
       await wait(600)

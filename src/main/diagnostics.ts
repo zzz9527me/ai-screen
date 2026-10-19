@@ -355,9 +355,38 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
       }
     }
 
-    // 5) Screenshot: tray action opens the editor, annotate with arrow + text,
-    // save to disk and copy to the clipboard.
-    await ctx.openScreenshot()
+    // 5) Screenshot: select a region on the overlay, then annotate/save/copy.
+    const screenshotPromise = ctx.openScreenshot()
+    const selectionOverlay = await waitForWindow('/overlay/', 10000, observerId)
+    record('flow.screenshot.selectionOverlay', Boolean(selectionOverlay))
+    if (selectionOverlay) {
+      await waitForLoad(selectionOverlay)
+      await wait(400)
+      try {
+        await selectionOverlay.webContents.executeJavaScript(
+          `(() => {
+            const root = document.getElementById('overlay')
+            if (!root) return false
+            const fire = (target, type, x, y) => {
+              target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }))
+            }
+            fire(root, 'mousedown', 80, 90)
+            fire(window, 'mousemove', 680, 490)
+            fire(window, 'mouseup', 680, 490)
+            return true
+          })()`,
+          true
+        )
+      } catch (error) {
+        recordError('flow.screenshot.selectionDrag', error)
+      }
+      await wait(500)
+    }
+    const selectionSettled = await Promise.race([
+      screenshotPromise.then(() => 'done'),
+      wait(15000).then(() => 'timeout')
+    ])
+    record('flow.screenshot.selectionSettled', selectionSettled)
     const shotWin = await waitForWindow('/screenshot/', 12000, observerId)
     record('flow.screenshot.window', Boolean(shotWin))
     if (shotWin) {
@@ -381,7 +410,7 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
         )
       )
       await shotWin.webContents.executeJavaScript(
-        `(() => {
+        `(async () => {
           const canvas = document.querySelector('.screenshot-image-shell canvas')
           const rect = canvas.getBoundingClientRect()
           const fire = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, {
@@ -395,7 +424,9 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
             buttons: type === 'pointerup' ? 0 : 1
           }))
           fire('pointerdown', 60, 80)
+          await new Promise((resolve) => setTimeout(resolve, 150))
           fire('pointermove', 240, 180)
+          await new Promise((resolve) => setTimeout(resolve, 150))
           fire('pointerup', 240, 180)
           return true
         })()`,
@@ -440,6 +471,38 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
         true
       )
       await wait(350)
+      await clickButton(shotWin, '文本')
+      await wait(250)
+      await shotWin.webContents.executeJavaScript(
+        `(() => {
+          const canvas = document.querySelector('.screenshot-image-shell canvas')
+          const rect = canvas.getBoundingClientRect()
+          canvas.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + 300,
+            clientY: rect.top + 600,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            buttons: 1
+          }))
+          return true
+        })()`,
+        true
+      )
+      await wait(350)
+      await shotWin.webContents.executeJavaScript(
+        `(() => { const input = document.querySelector('.screenshot-text-input'); if (!input) return false; input.focus(); return true })()`
+      )
+      shotWin.webContents.insertText('直接保存')
+      await wait(250)
+      record(
+        'flow.screenshot.textValue2',
+        await shotWin.webContents.executeJavaScript(
+          `document.querySelector('.screenshot-text-input')?.value ?? null`
+        )
+      )
       record('flow.screenshot.saveClick', await clickButton(shotWin, '保存图片'))
       await wait(1400)
       const toast = (await shotWin.webContents.executeJavaScript(

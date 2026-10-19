@@ -188,7 +188,7 @@ export function App(): React.JSX.Element {
             <p className="field error">{errors.screenshotShortcut}</p>
           )}
           <p className="hint">
-            点击输入框后按下组合键(至少包含 Ctrl 或 Alt,Shift 可组合);退格恢复默认,Esc 取消。
+            点击输入框后按下组合键(至少包含 Ctrl 或 Alt,Shift 可组合);退格恢复默认,Esc 取消。触发截屏后先在屏幕上拖动框选区域。
           </p>
         </div>
       </section>

@@ -17,7 +17,7 @@ import {
   showSaveNotification
 } from './services/notifications'
 import { RecordingSessionManager } from './services/recordingSession'
-import { capturePrimaryScreen } from './services/screenshot'
+import { capturePrimaryScreen, cropScreenshot } from './services/screenshot'
 import { SettingsStore } from './services/settingsStore'
 import { ShortcutManager } from './services/shortcutManager'
 import { AppTray } from './tray'
@@ -27,6 +27,7 @@ import {
   primeDisplayMediaSource
 } from './windows/captureWindow'
 import { showModeDialog } from './windows/modeDialog'
+import { showRegionSelector } from './windows/regionOverlay'
 import { getScreenshotWindow, showScreenshotEditor } from './windows/screenshotWindow'
 import { showSettingsWindow } from './windows/settingsWindow'
 
@@ -109,8 +110,15 @@ if (!gotLock) {
     if (screenshotBusy) return
     screenshotBusy = true
     try {
+      const region = await showRegionSelector()
+      if (!region) return
       const image = await capturePrimaryScreen()
-      showScreenshotEditor(image)
+      const display = screen.getPrimaryDisplay()
+      const cropped = cropScreenshot(image, region, {
+        width: display.size.width,
+        height: display.size.height
+      })
+      showScreenshotEditor(cropped)
     } catch (error) {
       showErrorNotification(
         `截屏失败: ${error instanceof Error ? error.message : String(error)}`

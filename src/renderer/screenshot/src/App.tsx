@@ -14,7 +14,7 @@ type Annotation =
 type Tool = 'arrow' | 'text'
 
 function arrowLineWidth(imageWidth: number): number {
-  return Math.max(2, imageWidth / 700)
+  return Math.max(2.5, imageWidth / 500)
 }
 
 function drawArrow(
@@ -61,7 +61,7 @@ function drawTextAnnotation(
   note: Extract<Annotation, { kind: 'text' }>,
   imageWidth: number
 ): void {
-  const fontSize = Math.max(18, imageWidth / 55)
+  const fontSize = Math.max(20, imageWidth / 40)
   context.font = `600 ${fontSize}px "Microsoft YaHei UI", "Segoe UI", sans-serif`
   context.textBaseline = 'top'
   context.lineJoin = 'round'
@@ -91,7 +91,7 @@ export function App(): React.JSX.Element {
   const [dragStart, setDragStart] = useState<Point | null>(null)
   const [dragEnd, setDragEnd] = useState<Point | null>(null)
   const [display, setDisplay] = useState({ width: 0, height: 0 })
-  const [draft, setDraft] = useState<{ x: number; y: number; value: string } | null>(null)
+  const [draft, setDraft] = useState<{ x: number; y: number } | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -100,6 +100,7 @@ export function App(): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const draftRef = useRef<HTMLInputElement>(null)
+  const draftCommittedRef = useRef(false)
 
   useEffect(() => window.dsh.screenshot.onImage((payload) => setImage(payload)), [])
 
@@ -135,7 +136,9 @@ export function App(): React.JSX.Element {
   }, [annotations, dragStart, dragEnd, image])
 
   useEffect(() => {
-    if (draft) draftRef.current?.focus()
+    if (!draft) return
+    draftRef.current?.focus()
+    draftRef.current?.select()
   }, [draft])
 
   useEffect(() => {
@@ -159,7 +162,8 @@ export function App(): React.JSX.Element {
     if (!image) return
     if (tool === 'text') {
       const point = toNatural(event)
-      setDraft({ x: point.x, y: point.y, value: '' })
+      draftCommittedRef.current = false
+      setDraft({ x: point.x, y: point.y })
       return
     }
     try {
@@ -189,8 +193,9 @@ export function App(): React.JSX.Element {
   }
 
   const commitDraft = (): void => {
-    if (!draft) return
-    const text = draft.value.trim()
+    if (!draft || draftCommittedRef.current) return
+    draftCommittedRef.current = true
+    const text = draftRef.current?.value.trim() ?? ''
     if (text) {
       setAnnotations((current) => [
         ...current,
@@ -210,9 +215,10 @@ export function App(): React.JSX.Element {
     const context = canvas.getContext('2d')
     if (!context) return null
     context.drawImage(source, 0, 0, current.width, current.height)
+    const draftText = draft ? (draftRef.current?.value.trim() ?? '') : ''
     const pending =
-      draft && draft.value.trim()
-        ? [...annotations, { kind: 'text' as const, x: draft.x, y: draft.y, text: draft.value.trim() }]
+      draft && draftText
+        ? [...annotations, { kind: 'text' as const, x: draft.x, y: draft.y, text: draftText }]
         : annotations
     for (const annotation of pending) drawAnnotation(context, annotation, current.width)
     return canvas.toDataURL('image/png')
@@ -263,7 +269,7 @@ export function App(): React.JSX.Element {
 
   const draftFontSize =
     image && display.width > 0
-      ? Math.max(13, Math.min(26, (image.width / 55) * (display.width / image.width)))
+      ? Math.max(14, Math.min(32, (image.width / 40) * (display.width / image.width)))
       : 16
 
   return (
@@ -299,22 +305,29 @@ export function App(): React.JSX.Element {
                 ref={draftRef}
                 className="screenshot-text-input"
                 style={{
-                  left: `${(draft.x / (image?.width ?? 1)) * display.width}px`,
-                  top: `${(draft.y / (image?.height ?? 1)) * display.height}px`,
-                  fontSize: `${draftFontSize}px`
+                  left: `${Math.min(
+                    Math.max(0, (draft.x / (image?.width ?? 1)) * display.width),
+                    Math.max(0, display.width - 180)
+                  )}px`,
+                  top: `${Math.min(
+                    Math.max(0, (draft.y / (image?.height ?? 1)) * display.height),
+                    Math.max(0, display.height - 36)
+                  )}px`,
+                  fontSize: `${draftFontSize}px`,
+                  zIndex: 5
                 }}
-                value={draft.value}
+                defaultValue=""
                 placeholder="输入文字…"
-                onChange={(event) =>
-                  setDraft((current) => (current ? { ...current, value: event.target.value } : current))
-                }
+                aria-label="文字标注"
                 onKeyDown={(event) => {
                   event.stopPropagation()
+                  if (event.nativeEvent.isComposing) return
                   if (event.key === 'Enter') {
                     event.preventDefault()
                     commitDraft()
                   } else if (event.key === 'Escape') {
                     event.preventDefault()
+                    draftCommittedRef.current = true
                     setDraft(null)
                   }
                 }}

@@ -3,6 +3,7 @@ import path from 'node:path'
 
 export interface TrayHandlers {
   onRecord(): void
+  onScreenshot(): void
   onSettings(): void
   onStop(): void
   onQuit(): void
@@ -21,6 +22,7 @@ function loadIcon(): Electron.NativeImage {
 export class AppTray {
   private tray: Tray | null = null
   private state: TrayState = 'idle'
+  private menuLabels: string[] = []
 
   constructor(private readonly handlers: TrayHandlers) {}
 
@@ -41,6 +43,10 @@ export class AppTray {
     this.tray?.setToolTip(text)
   }
 
+  getMenuLabels(): string[] {
+    return [...this.menuLabels]
+  }
+
   destroy(): void {
     this.tray?.destroy()
     this.tray = null
@@ -49,8 +55,14 @@ export class AppTray {
   private rebuildMenu(): void {
     const items: Electron.MenuItemConstructorOptions[] =
       this.state === 'recording'
-        ? [{ label: '停止录制', click: () => this.handlers.onStop() }]
-        : [{ label: '录屏', click: () => this.handlers.onRecord() }]
+        ? [
+            { label: '停止录制', click: () => this.handlers.onStop() },
+            { label: '截屏', click: () => this.handlers.onScreenshot() }
+          ]
+        : [
+            { label: '录屏', click: () => this.handlers.onRecord() },
+            { label: '截屏', click: () => this.handlers.onScreenshot() }
+          ]
 
     items.push(
       { label: '设置', click: () => this.handlers.onSettings() },
@@ -58,5 +70,8 @@ export class AppTray {
       { label: '退出', click: () => this.handlers.onQuit() }
     )
     this.tray?.setContextMenu(Menu.buildFromTemplate(items))
+    this.menuLabels = items
+      .map((item) => item.label)
+      .filter((label): label is string => Boolean(label))
   }
 }

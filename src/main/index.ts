@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { IPC } from '@shared/ipc-channels'
 import { MP4_MIME_CANDIDATES } from '@shared/mime'
+import { DEFAULT_SCREENSHOT_SHORTCUT } from '@shared/shortcut'
 import { registerIpc } from './ipc/handlers'
 import { runDiagnostics } from './diagnostics'
 import { CrashRecovery } from './services/crashRecovery'
@@ -16,7 +17,9 @@ import {
   showSaveNotification
 } from './services/notifications'
 import { RecordingSessionManager } from './services/recordingSession'
+import { capturePrimaryScreen } from './services/screenshot'
 import { SettingsStore } from './services/settingsStore'
+import { ShortcutManager } from './services/shortcutManager'
 import { AppTray } from './tray'
 import {
   createCaptureWindow,
@@ -24,6 +27,7 @@ import {
   primeDisplayMediaSource
 } from './windows/captureWindow'
 import { showModeDialog } from './windows/modeDialog'
+import { getScreenshotWindow, showScreenshotEditor } from './windows/screenshotWindow'
 import { showSettingsWindow } from './windows/settingsWindow'
 
 app.setAppUserModelId('com.dsh.screen-recorder')
@@ -90,8 +94,31 @@ if (!gotLock) {
 
   let tray: AppTray | null = null
   let sessionManager: RecordingSessionManager | null = null
+  let shortcutManager: ShortcutManager | null = null
+  let screenshotBusy = false
   let quitting = false
   let powerBlockerId: number | null = null
+
+  const openScreenshot = async (): Promise<void> => {
+    const existing = getScreenshotWindow()
+    if (existing) {
+      existing.show()
+      existing.focus()
+      return
+    }
+    if (screenshotBusy) return
+    screenshotBusy = true
+    try {
+      const image = await capturePrimaryScreen()
+      showScreenshotEditor(image)
+    } catch (error) {
+      showErrorNotification(
+        `截屏失败: ${error instanceof Error ? error.message : String(error)}`
+      )
+    } finally {
+      screenshotBusy = false
+    }
+  }
 
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of BrowserWindow.getAllWindows()) {
@@ -195,11 +222,20 @@ if (!gotLock) {
       settings,
       session: manager,
       broadcastState: (state) => broadcast(IPC.StateChanged, state),
-      broadcastSettings: (value) => broadcast(IPC.SettingsChanged, value)
+      broadcastSettings: (value) => broadcast(IPC.SettingsChanged, value),
+      validateShortcut: (shortcut) => shortcutManager?.canRegister(shortcut) ?? true,
+      applyShortcut: (shortcut) => {
+        if (shortcutManager && !shortcutManager.update(shortcut)) {
+          showErrorNotification(`截屏快捷键 ${shortcut} 注册失败,请到设置中换一个组合`)
+        }
+      }
     })
 
     tray = new AppTray({
       onRecord: () => showModeDialog(),
+      onScreenshot: () => {
+        void openScreenshot()
+      },
       onSettings: () => showSettingsWindow(),
       onStop: () => {
         void manager.stop()
@@ -207,6 +243,25 @@ if (!gotLock) {
       onQuit: () => app.quit()
     })
     tray.create()
+
+    shortcutManager = new ShortcutManager(() => {
+      void openScreenshot()
+    })
+    const configuredShortcut = settings.get().screenshotShortcut
+    if (!shortcutManager.register(configuredShortcut)) {
+      if (
+        configuredShortcut !== DEFAULT_SCREENSHOT_SHORTCUT &&
+        shortcutManager.register(DEFAULT_SCREENSHOT_SHORTCUT)
+      ) {
+        showErrorNotification(
+          `截屏快捷键 ${configuredShortcut} 不可用,已临时使用 ${DEFAULT_SCREENSHOT_SHORTCUT}`
+        )
+      } else {
+        showErrorNotification(
+          `截屏快捷键 ${configuredShortcut} 注册失败,请到设置中修改`
+        )
+      }
+    }
 
     const leftover = crashRecovery.detectLeftover()
     if (leftover) showRecoveryNotification(leftover)
@@ -216,9 +271,16 @@ if (!gotLock) {
         showModeDialog,
         showSettingsWindow,
         stopRecording: () => manager.stop(),
-        getState: () => manager.getState()
+        getState: () => manager.getState(),
+        openScreenshot,
+        getStorageDirectory: () => settings.get().storageDirectory,
+        getTrayMenuLabels: () => tray?.getMenuLabels() ?? []
       })
     }
+  })
+
+  app.on('will-quit', () => {
+    shortcutManager?.dispose()
   })
 
   app.on('window-all-closed', () => {

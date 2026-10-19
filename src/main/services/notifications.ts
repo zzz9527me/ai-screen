@@ -11,6 +11,10 @@ export function showSaveNotification(filePath: string): boolean {
   return showNotification('DSH 屏幕录制器', `录制已保存:\n${filePath}`)
 }
 
+export function showScreenshotSavedNotification(filePath: string): boolean {
+  return showNotification('DSH 屏幕录制器', `截图已保存:\n${filePath}`)
+}
+
 export function showErrorNotification(message: string): boolean {
   return showNotification('DSH 屏幕录制器 - 错误', message)
 }

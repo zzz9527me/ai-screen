@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { DEFAULT_SCREENSHOT_SHORTCUT } from '../../src/shared/shortcut'
 import { SettingsStore } from '../../src/main/services/settingsStore'
 
 const roots: string[] = []
@@ -35,7 +36,26 @@ describe('SettingsStore', () => {
     expect(settings.storageDirectory).toBe(path.join(videosDir, 'DSH Screen Recorder'))
     expect(settings.region).toEqual({ x: 0, y: 0, width: 1280, height: 720 })
     expect(settings.lastMode).toBe('fullscreen')
+    expect(settings.screenshotShortcut).toBe(DEFAULT_SCREENSHOT_SHORTCUT)
     expect(fs.existsSync(path.join(userDataDir, 'settings.json'))).toBe(true)
+  })
+
+  it('migrates old settings without a screenshot shortcut', () => {
+    const { userDataDir, videosDir, createStore } = setup()
+    fs.writeFileSync(
+      path.join(userDataDir, 'settings.json'),
+      JSON.stringify({
+        version: 1,
+        storageDirectory: path.join(videosDir, 'legacy'),
+        region: { x: 0, y: 0, width: 800, height: 600 },
+        lastMode: 'fullscreen',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+      }),
+      'utf8'
+    )
+    const settings = createStore().get()
+    expect(settings.storageDirectory).toBe(path.join(videosDir, 'legacy'))
+    expect(settings.screenshotShortcut).toBe(DEFAULT_SCREENSHOT_SHORTCUT)
   })
 
   it('persists valid changes and reloads them', () => {

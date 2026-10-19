@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { settingsInputSchema, settingsSchema } from '@shared/schemas'
+import { DEFAULT_SCREENSHOT_SHORTCUT } from '@shared/shortcut'
 import type { Region, SaveResult, Settings, SettingsInput } from '@shared/types'
 import { clampRegion } from './regionMath'
 
@@ -28,6 +29,7 @@ export function createDefaultSettings(deps: {
     storageDirectory: path.join(deps.videosDir, 'DSH Screen Recorder'),
     region: clampRegion(DEFAULT_REGION, deps.display),
     lastMode: 'fullscreen',
+    screenshotShortcut: DEFAULT_SCREENSHOT_SHORTCUT,
     updatedAt: new Date().toISOString()
   }
 }

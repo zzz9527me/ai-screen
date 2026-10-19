@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Region, Settings } from '@shared/types'
+import {
+  acceleratorFromKeyEvent,
+  DEFAULT_SCREENSHOT_SHORTCUT,
+  formatShortcut
+} from '@shared/shortcut'
 import { Button, NumberField } from '../../common/components'
 
 const FIELDS: Array<{ key: keyof Region; label: string }> = [
@@ -21,6 +26,8 @@ export function App(): React.JSX.Element {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [shortcut, setShortcut] = useState(DEFAULT_SCREENSHOT_SHORTCUT)
+  const [capturingShortcut, setCapturingShortcut] = useState(false)
 
   useEffect(() => {
     let disposed = false
@@ -29,6 +36,7 @@ export function App(): React.JSX.Element {
       if (disposed) return
       setSettings(value)
       setStorage(value.storageDirectory)
+      setShortcut(value.screenshotShortcut)
       setRaw({
         x: String(value.region.x),
         y: String(value.region.y),
@@ -71,11 +79,16 @@ export function App(): React.JSX.Element {
       setErrors({ storageDirectory: '请填写存储位置' })
       return
     }
+    if (!shortcut.trim()) {
+      setErrors({ screenshotShortcut: '请设置截屏快捷键' })
+      return
+    }
     setBusy(true)
     const result = await window.dsh.settings.save({
       storageDirectory: storage.trim(),
       region: parsedRegion,
-      lastMode: settings?.lastMode
+      lastMode: settings?.lastMode,
+      screenshotShortcut: shortcut
     })
     setBusy(false)
     if (!result.ok) {
@@ -87,7 +100,45 @@ export function App(): React.JSX.Element {
     setSettings(result.settings)
     setSaved(true)
     window.setTimeout(() => window.dsh.dialog.close(), 600)
-  }, [parsedRegion, settings?.lastMode, storage])
+  }, [parsedRegion, settings?.lastMode, shortcut, storage])
+
+  const handleShortcutKey = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setCapturingShortcut(false)
+      event.currentTarget.blur()
+      return
+    }
+    if (event.key === 'Backspace' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault()
+      setShortcut(DEFAULT_SCREENSHOT_SHORTCUT)
+      setErrors((current) => {
+        const next = { ...current }
+        delete next.screenshotShortcut
+        return next
+      })
+      return
+    }
+    const accelerator = acceleratorFromKeyEvent(event)
+    if (!accelerator) {
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        setErrors((current) => ({
+          ...current,
+          screenshotShortcut: '快捷键至少需要 Ctrl 或 Alt(Shift 可组合使用)'
+        }))
+      }
+      return
+    }
+    event.preventDefault()
+    setShortcut(accelerator)
+    setCapturingShortcut(false)
+    setErrors((current) => {
+      const next = { ...current }
+      delete next.screenshotShortcut
+      return next
+    })
+    event.currentTarget.blur()
+  }, [])
 
   const close = useCallback(() => {
     window.dsh.dialog.close()
@@ -97,7 +148,7 @@ export function App(): React.JSX.Element {
     <div className="app">
       <header className="app-header">
         <h1>设置</h1>
-        <p>配置录制区域与文件存储位置,保存后立即生效。</p>
+        <p>配置录制区域、存储位置与截屏快捷键,保存后立即生效。</p>
       </header>
 
       <section className="section">
@@ -117,6 +168,29 @@ export function App(): React.JSX.Element {
         </div>
         {errors.region && <p className="field error">{errors.region}</p>}
         <p className="hint">区域单位与 Windows 显示缩放无关(设备无关像素),范围须在主显示器内。</p>
+      </section>
+
+      <section className="section">
+        <h2 className="section-title">截屏</h2>
+        <div className="field">
+          <label htmlFor="settings-screenshot-shortcut">截屏快捷键</label>
+          <input
+            id="settings-screenshot-shortcut"
+            type="text"
+            readOnly
+            value={capturingShortcut ? '请按下组合键…' : formatShortcut(shortcut)}
+            onFocus={() => setCapturingShortcut(true)}
+            onBlur={() => setCapturingShortcut(false)}
+            onKeyDown={handleShortcutKey}
+            style={{ fontFamily: 'Consolas, monospace', letterSpacing: '0.5px' }}
+          />
+          {errors.screenshotShortcut && (
+            <p className="field error">{errors.screenshotShortcut}</p>
+          )}
+          <p className="hint">
+            点击输入框后按下组合键(至少包含 Ctrl 或 Alt,Shift 可组合);退格恢复默认,Esc 取消。
+          </p>
+        </div>
       </section>
 
       <section className="section">

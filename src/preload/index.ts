@@ -7,10 +7,22 @@ import type {
   CaptureReadyPayload,
   DshApi,
   Region,
+  ScreenshotImagePayload,
   Settings,
   SettingsInput,
   StartCaptureRequest
 } from '@shared/types'
+
+const screenshotImageListeners = new Set<(payload: ScreenshotImagePayload) => void>()
+let pendingScreenshotImage: ScreenshotImagePayload | null = null
+
+ipcRenderer.on(IPC.ScreenshotImage, (_event, payload: ScreenshotImagePayload) => {
+  if (screenshotImageListeners.size === 0) {
+    pendingScreenshotImage = payload
+    return
+  }
+  for (const listener of screenshotImageListeners) listener(payload)
+})
 
 const api: DshApi = {
   settings: {
@@ -27,6 +39,19 @@ const api: DshApi = {
   capture: {
     start: (request: StartCaptureRequest) => ipcRenderer.invoke(IPC.CaptureStart, request),
     stop: () => ipcRenderer.invoke(IPC.CaptureStop)
+  },
+  screenshot: {
+    onImage(cb: (payload: ScreenshotImagePayload) => void) {
+      screenshotImageListeners.add(cb)
+      if (pendingScreenshotImage) {
+        const payload = pendingScreenshotImage
+        pendingScreenshotImage = null
+        cb(payload)
+      }
+      return () => screenshotImageListeners.delete(cb)
+    },
+    save: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotSave, { dataUrl }),
+    copy: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotCopy, { dataUrl })
   },
   dialog: {
     close: () => ipcRenderer.send(IPC.DialogClose)

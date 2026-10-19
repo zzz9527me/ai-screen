@@ -1,14 +1,25 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import {
+  BrowserWindow,
+  clipboard,
+  ClipboardItem,
+  dialog,
+  ipcMain,
+  nativeImage
+} from 'electron'
+import fs from 'node:fs'
 import { IPC } from '@shared/ipc-channels'
 import {
   captureChunkSchema,
   captureFinishedSchema,
   captureReadySchema,
+  screenshotPayloadSchema,
   settingsInputSchema,
   startCaptureRequestSchema
 } from '@shared/schemas'
 import type { AppState, Settings, SettingsInput } from '@shared/types'
 import { listWindowSources } from '../services/captureSources'
+import { uniqueScreenshotPath } from '../services/filename'
+import { showScreenshotSavedNotification } from '../services/notifications'
 import type { RecordingSessionManager } from '../services/recordingSession'
 import type { SettingsStore } from '../services/settingsStore'
 import { showRegionSelector } from '../windows/regionOverlay'
@@ -18,6 +29,8 @@ export interface IpcContext {
   session: RecordingSessionManager
   broadcastState(state: AppState): void
   broadcastSettings(settings: Settings): void
+  validateShortcut?(shortcut: string): boolean
+  applyShortcut?(shortcut: string): void
 }
 
 const allowedSenders = new Set<number>()
@@ -57,8 +70,26 @@ export function registerIpc(context: IpcContext): void {
     assertAllowed(event)
     const parsed = settingsInputSchema.safeParse(input)
     if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) }
+    if (
+      parsed.data.screenshotShortcut &&
+      context.validateShortcut &&
+      !context.validateShortcut(parsed.data.screenshotShortcut)
+    ) {
+      return {
+        ok: false,
+        errors: [
+          {
+            field: 'screenshotShortcut',
+            message: '该快捷键不可用或已被其他程序占用,请换一个组合'
+          }
+        ]
+      }
+    }
     const result = context.settings.save(parsed.data)
-    if (result.ok) context.broadcastSettings(result.settings)
+    if (result.ok) {
+      context.broadcastSettings(result.settings)
+      context.applyShortcut?.(result.settings.screenshotShortcut)
+    }
     return result
   })
 
@@ -106,6 +137,58 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IPC.CaptureStop, async (event) => {
     assertAllowed(event)
     return context.session.stop()
+  })
+
+  ipcMain.handle(IPC.ScreenshotSave, async (event, payload: unknown) => {
+    assertAllowed(event)
+    const parsed = screenshotPayloadSchema.safeParse(payload)
+    if (!parsed.success) return { ok: false, message: '图片数据无效' }
+    let image: Electron.NativeImage
+    try {
+      image = nativeImage.createFromDataURL(parsed.data.dataUrl)
+    } catch {
+      return { ok: false, message: '图片数据无法解析' }
+    }
+    if (image.isEmpty()) return { ok: false, message: '图片数据为空' }
+    const buffer = image.toPNG()
+    if (buffer.length === 0) return { ok: false, message: '图片编码失败' }
+
+    const directory = context.settings.get().storageDirectory
+    try {
+      await fs.promises.mkdir(directory, { recursive: true })
+      await fs.promises.access(directory, fs.constants.W_OK)
+      const outputPath = await uniqueScreenshotPath(directory, new Date())
+      await fs.promises.writeFile(outputPath, buffer)
+      showScreenshotSavedNotification(outputPath)
+      return { ok: true, path: outputPath }
+    } catch (error) {
+      return {
+        ok: false,
+        message: `保存截图失败: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+  })
+
+  ipcMain.handle(IPC.ScreenshotCopy, async (event, payload: unknown) => {
+    assertAllowed(event)
+    const parsed = screenshotPayloadSchema.safeParse(payload)
+    if (!parsed.success) return { ok: false, message: '图片数据无效' }
+    try {
+      const image = nativeImage.createFromDataURL(parsed.data.dataUrl)
+      if (image.isEmpty()) return { ok: false, message: '图片数据为空' }
+      const png = image.toPNG()
+      await clipboard.write([
+        new ClipboardItem({
+          'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' })
+        })
+      ])
+      return { ok: true }
+    } catch (error) {
+      return {
+        ok: false,
+        message: `复制图片失败: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
   })
 
   ipcMain.on(IPC.DialogClose, (event) => {

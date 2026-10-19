@@ -26,7 +26,8 @@ export default defineConfig({
           mode: resolve('src/renderer/mode/index.html'),
           settings: resolve('src/renderer/settings/index.html'),
           overlay: resolve('src/renderer/overlay/index.html'),
-          capture: resolve('src/renderer/capture/index.html')
+          capture: resolve('src/renderer/capture/index.html'),
+          screenshot: resolve('src/renderer/screenshot/index.html')
         }
       }
     }

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import path from 'node:path'
 import {
   buildFileName,
+  buildScreenshotFileName,
   formatTimestamp,
-  uniqueFilePath
+  uniqueFilePath,
+  uniqueScreenshotPath
 } from '../../src/main/services/filename'
 
 describe('filename', () => {
@@ -29,5 +31,14 @@ describe('filename', () => {
     ])
     const result = await uniqueFilePath('/out', date, { exists: (candidate) => taken.has(candidate) })
     expect(result).toBe(path.join('/out', 'ScreenRecording_20260304_050607_2.mp4'))
+  })
+
+  it('builds unique Screenshot png paths', async () => {
+    expect(buildScreenshotFileName(date)).toBe('Screenshot_20260304_050607.png')
+    const taken = new Set([path.join('/out', 'Screenshot_20260304_050607.png')])
+    const result = await uniqueScreenshotPath('/out', date, {
+      exists: (candidate) => taken.has(candidate)
+    })
+    expect(result).toBe(path.join('/out', 'Screenshot_20260304_050607_1.png'))
   })
 })

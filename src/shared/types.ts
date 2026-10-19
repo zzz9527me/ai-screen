@@ -14,6 +14,7 @@ export interface Settings {
   storageDirectory: string
   region: Region
   lastMode: CaptureMode
+  screenshotShortcut: string
   updatedAt: string
 }
 
@@ -21,6 +22,7 @@ export interface SettingsInput {
   storageDirectory?: string
   region?: Region
   lastMode?: CaptureMode
+  screenshotShortcut?: string
 }
 
 export interface WindowSource {
@@ -73,6 +75,18 @@ export interface PhysicalHint {
   width: number
   height: number
 }
+
+export interface ScreenshotImagePayload {
+  dataUrl: string
+  width: number
+  height: number
+}
+
+export type ScreenshotSaveResult =
+  | { ok: true; path: string }
+  | { ok: false; message: string }
+
+export type ScreenshotCopyResult = { ok: true } | { ok: false; message: string }
 
 export interface CaptureBeginPayload {
   sessionId: string
@@ -135,6 +149,11 @@ export interface DshApi {
   capture: {
     start(request: StartCaptureRequest): Promise<StartCaptureResult>
     stop(): Promise<StopCaptureResult>
+  }
+  screenshot: {
+    onImage(cb: (payload: ScreenshotImagePayload) => void): Unsubscribe
+    save(dataUrl: string): Promise<ScreenshotSaveResult>
+    copy(dataUrl: string): Promise<ScreenshotCopyResult>
   }
   dialog: {
     close(): void

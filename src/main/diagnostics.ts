@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer } from 'electron'
+import { app, BrowserWindow, clipboard, desktopCapturer, globalShortcut, nativeImage } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { StopCaptureResult } from '@shared/types'
@@ -10,6 +10,9 @@ export interface DiagnosticsContext {
   showSettingsWindow(): void
   stopRecording(): Promise<StopCaptureResult>
   getState(): string
+  openScreenshot(): Promise<void>
+  getStorageDirectory(): string
+  getTrayMenuLabels(): string[]
 }
 
 interface Step {
@@ -137,6 +140,7 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
 
   try {
     record('userData', app.getPath('userData'))
+    record('tray.menu', ctx.getTrayMenuLabels())
     const rawWindows = await desktopCapturer.getSources({
       types: ['window'],
       thumbnailSize: { width: 0, height: 0 }
@@ -309,11 +313,194 @@ export async function runDiagnostics(ctx: DiagnosticsContext): Promise<void> {
       await wait(900)
       record('flow.settings.saveClick', await clickButton(settingsWin, '保存'))
       await wait(350)
+      const settingsValue = (await settingsWin.webContents.executeJavaScript(
+        'window.dsh.settings.get()'
+      )) as { screenshotShortcut?: string }
+      record('flow.settings.readBack', settingsValue)
       record(
-        'flow.settings.readBack',
-        await settingsWin.webContents.executeJavaScript('window.dsh.settings.get()')
+        'flow.settings.shortcutRegistered',
+        Boolean(
+          settingsValue.screenshotShortcut &&
+            globalShortcut.isRegistered(settingsValue.screenshotShortcut)
+        )
       )
       await wait(900)
+
+      ctx.showSettingsWindow()
+      const shortcutWin = await waitForWindow('/settings/', 8000, observerId)
+      if (shortcutWin) {
+        await waitForLoad(shortcutWin)
+        await wait(800)
+        record(
+          'flow.settings.shortcutCapture',
+          await shortcutWin.webContents.executeJavaScript(
+            `(async () => {
+              const input = document.querySelector('#settings-screenshot-shortcut')
+              if (!input) return null
+              input.focus()
+              input.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'F12',
+                ctrlKey: true,
+                altKey: true,
+                shiftKey: true,
+                bubbles: true
+              }))
+              await new Promise((resolve) => setTimeout(resolve, 300))
+              return input.value
+            })()`
+          )
+        )
+        await shortcutWin.webContents.executeJavaScript('window.dsh.dialog.close()', true)
+        await wait(500)
+      }
+    }
+
+    // 5) Screenshot: tray action opens the editor, annotate with arrow + text,
+    // save to disk and copy to the clipboard.
+    await ctx.openScreenshot()
+    const shotWin = await waitForWindow('/screenshot/', 12000, observerId)
+    record('flow.screenshot.window', Boolean(shotWin))
+    if (shotWin) {
+      await waitForLoad(shotWin)
+      await wait(1200)
+      record(
+        'flow.screenshot.state',
+        await shotWin.webContents.executeJavaScript(
+          `(() => {
+            const image = document.querySelector('.screenshot-image-shell img')
+            const canvas = document.querySelector('.screenshot-image-shell canvas')
+            const buttons = [...document.querySelectorAll('.screenshot-toolbar button')].map((button) => button.textContent)
+            return {
+              hasImage: Boolean(image && image.complete && image.naturalWidth > 0),
+              imageWidth: image ? image.naturalWidth : 0,
+              imageHeight: image ? image.naturalHeight : 0,
+              canvasWidth: canvas ? canvas.width : 0,
+              buttons
+            }
+          })()`
+        )
+      )
+      await shotWin.webContents.executeJavaScript(
+        `(() => {
+          const canvas = document.querySelector('.screenshot-image-shell canvas')
+          const rect = canvas.getBoundingClientRect()
+          const fire = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + x,
+            clientY: rect.top + y,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            buttons: type === 'pointerup' ? 0 : 1
+          }))
+          fire('pointerdown', 60, 80)
+          fire('pointermove', 240, 180)
+          fire('pointerup', 240, 180)
+          return true
+        })()`,
+        true
+      )
+      record('flow.screenshot.textTool', await clickButton(shotWin, '文本'))
+      await wait(300)
+      await shotWin.webContents.executeJavaScript(
+        `(() => {
+          const canvas = document.querySelector('.screenshot-image-shell canvas')
+          const rect = canvas.getBoundingClientRect()
+          canvas.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + 120,
+            clientY: rect.top + 240,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            buttons: 1
+          }))
+          return true
+        })()`,
+        true
+      )
+      await wait(350)
+      shotWin.focus()
+      shotWin.webContents.focus()
+      await shotWin.webContents.executeJavaScript(
+        `(() => { const input = document.querySelector('.screenshot-text-input'); if (!input) return false; input.focus(); return true })()`
+      )
+      shotWin.webContents.insertText('测试标注')
+      await wait(250)
+      record(
+        'flow.screenshot.textValue',
+        await shotWin.webContents.executeJavaScript(
+          `document.querySelector('.screenshot-text-input')?.value ?? null`
+        )
+      )
+      await shotWin.webContents.executeJavaScript(
+        `(() => { const input = document.querySelector('.screenshot-text-input'); if (input) input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()`,
+        true
+      )
+      await wait(350)
+      record('flow.screenshot.saveClick', await clickButton(shotWin, '保存图片'))
+      await wait(1400)
+      const toast = (await shotWin.webContents.executeJavaScript(
+        `document.querySelector('.screenshot-toast')?.textContent ?? null`
+      )) as string | null
+      record('flow.screenshot.toast', toast)
+      const savedPath = toast?.startsWith('已保存:') ? toast.slice('已保存:'.length).trim() : ''
+      if (savedPath) {
+        const exists = fs.existsSync(savedPath)
+        const size = exists ? fs.statSync(savedPath).size : 0
+        record('flow.screenshot.savedFile', { path: savedPath, exists, size })
+        if (exists) {
+          const savedImage = nativeImage.createFromPath(savedPath)
+          const bitmap = savedImage.toBitmap()
+          let redPixels = 0
+          for (let index = 0; index + 3 < bitmap.length; index += 4) {
+            const blue = bitmap[index]
+            const green = bitmap[index + 1]
+            const red = bitmap[index + 2]
+            if (red > 200 && green < 120 && blue < 120) redPixels += 1
+          }
+          record('flow.screenshot.savedImage', {
+            empty: savedImage.isEmpty(),
+            size: savedImage.getSize(),
+            redPixels
+          })
+        }
+      } else {
+        try {
+          const directory = ctx.getStorageDirectory()
+          const latest = fs
+            .readdirSync(directory)
+            .filter((name) => /^Screenshot_.+\.png$/.test(name))
+            .map((name) => {
+              const fullPath = path.join(directory, name)
+              return { fullPath, mtime: fs.statSync(fullPath).mtimeMs }
+            })
+            .sort((a, b) => b.mtime - a.mtime)[0]
+          record('flow.screenshot.savedFileFallback', latest ?? null)
+        } catch (error) {
+          recordError('flow.screenshot.savedFileFallback', error)
+        }
+      }
+      record('flow.screenshot.copyClick', await clickButton(shotWin, '复制图片'))
+      await wait(900)
+      try {
+        const items = await clipboard.read()
+        const imageItem = items.find((item) => item.types.includes('image/png'))
+        const clipboardSize = imageItem
+          ? (await imageItem.getType('image/png')).size
+          : 0
+        record('flow.screenshot.clipboard', {
+          itemCount: items.length,
+          types: items.map((item) => item.types),
+          imageBytes: clipboardSize
+        })
+      } catch (error) {
+        recordError('flow.screenshot.clipboard', error)
+      }
+      await shotWin.webContents.executeJavaScript('window.dsh.dialog.close()', true)
+      await wait(500)
     }
   } catch (error) {
     recordError('diagnostics', error)

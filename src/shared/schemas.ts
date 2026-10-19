@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DEFAULT_SCREENSHOT_SHORTCUT } from './shortcut'
 
 export const captureModeSchema = z.enum(['fullscreen', 'region', 'window'])
 
@@ -14,13 +15,19 @@ export const settingsSchema = z.object({
   storageDirectory: z.string().min(1),
   region: regionSchema,
   lastMode: captureModeSchema,
+  screenshotShortcut: z
+    .string()
+    .min(1)
+    .max(64)
+    .default(DEFAULT_SCREENSHOT_SHORTCUT),
   updatedAt: z.string().min(1)
 })
 
 export const settingsInputSchema = z.object({
   storageDirectory: z.string().min(1).optional(),
   region: regionSchema.optional(),
-  lastMode: captureModeSchema.optional()
+  lastMode: captureModeSchema.optional(),
+  screenshotShortcut: z.string().min(1).max(64).optional()
 })
 
 export const startCaptureRequestSchema = z.discriminatedUnion('mode', [
@@ -52,4 +59,12 @@ export const captureFinishedSchema = z.object({
 
 export const regionSelectedSchema = z.object({
   rect: regionSchema
+})
+
+export const screenshotPayloadSchema = z.object({
+  dataUrl: z
+    .string()
+    .min(32)
+    .max(120_000_000)
+    .startsWith('data:image/png;base64,')
 })

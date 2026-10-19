@@ -7,6 +7,8 @@ export const IPC = {
   CaptureStart: 'capture:start',
   CaptureStop: 'capture:stop',
   DialogClose: 'dialog:close',
+  ScreenshotSave: 'screenshot:save',
+  ScreenshotCopy: 'screenshot:copy',
 
   CaptureReady: 'capture:ready',
   CaptureChunk: 'capture:chunk',
@@ -18,7 +20,8 @@ export const IPC = {
   CaptureAbort: 'capture:abort',
   StateChanged: 'state:changed',
   ToastError: 'toast:error',
-  SettingsChanged: 'settings:changed'
+  SettingsChanged: 'settings:changed',
+  ScreenshotImage: 'screenshot:image'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

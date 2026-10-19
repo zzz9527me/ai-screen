@@ -13,6 +13,7 @@ export interface CreateWindowOptions {
   alwaysOnTop?: boolean
   skipTaskbar?: boolean
   backgroundColor?: string
+  useContentSize?: boolean
   webPreferences?: WebPreferences
 }
 
@@ -45,6 +46,7 @@ export function createWindow(options: CreateWindowOptions): BrowserWindow {
     alwaysOnTop: options.alwaysOnTop ?? false,
     skipTaskbar: options.skipTaskbar ?? false,
     backgroundColor: options.backgroundColor ?? '#141414',
+    useContentSize: options.useContentSize ?? false,
     webPreferences: secureWebPreferences(options.webPreferences)
   })
   applyNavigationGuards(win)
@@ -54,7 +56,7 @@ export function createWindow(options: CreateWindowOptions): BrowserWindow {
 
 export function loadPage(
   win: BrowserWindow,
-  page: 'mode' | 'settings' | 'overlay' | 'capture',
+  page: 'mode' | 'settings' | 'overlay' | 'capture' | 'screenshot',
   query?: Record<string, string>
 ): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL']

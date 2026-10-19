@@ -14,7 +14,7 @@ export function showSettingsWindow(): void {
   const win = createWindow({
     title: `${OWN_WINDOW_PREFIX} 设置`,
     width: 600,
-    height: 640,
+    height: 700,
     resizable: false,
     backgroundColor: '#141414'
   })

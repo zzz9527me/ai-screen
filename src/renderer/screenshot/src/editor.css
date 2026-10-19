@@ -1,0 +1,131 @@
+.screenshot-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0b0b0d;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.screenshot-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: radial-gradient(circle at 50% 35%, #1a1a1e 0%, #0b0b0d 70%);
+}
+
+.screenshot-image-shell {
+  position: relative;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #000;
+}
+
+.screenshot-image-shell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.screenshot-image-shell canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.screenshot-text-input {
+  position: absolute;
+  min-width: 160px;
+  max-width: 80%;
+  transform: translateY(-10%);
+  padding: 4px 8px;
+  border: 2px solid #ff453a;
+  border-radius: 4px;
+  background: rgba(12, 12, 14, 0.92);
+  color: #fff;
+  font-family: var(--font);
+  font-weight: 600;
+  outline: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.screenshot-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.screenshot-toolbar {
+  flex: none;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+}
+
+.screenshot-tools,
+.screenshot-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.screenshot-tools .btn,
+.screenshot-actions .btn {
+  padding: 8px 12px;
+}
+
+.screenshot-tools .tool-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+.screenshot-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: var(--space-2);
+  white-space: nowrap;
+}
+
+.screenshot-actions {
+  justify-content: flex-end;
+}
+
+.screenshot-error {
+  color: #ffb3b5;
+  font-size: 12px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screenshot-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  max-width: 86%;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(20, 20, 20, 0.96);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}

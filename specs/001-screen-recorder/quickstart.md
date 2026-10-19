@@ -115,6 +115,15 @@ npm run build     # electron-vite build + electron-builder --win
 3. 每名用户对「录制期间目标应用操作是否流畅」按 1–5 分评分(SC-008)。
 4. 预期:中位数 ≥ 4/5(记录逐人分数)。
 
+### 场景 J — 截屏与标注
+
+1. 托盘右键 →「截屏」,或按设置中的快捷键(默认 `Ctrl+Shift+S`)。
+2. 在编辑窗口底部工具栏选择「箭头」,在图片上拖动绘制;选择「文本」,点击图片输入文字。
+3. 点击「保存图片」,检查存储目录生成 `Screenshot_*.png`;点击「复制图片」,粘贴到画图或聊天工具。
+4. 打开设置,在「截屏快捷键」输入框按下新组合键并保存,确认新快捷键立即生效。
+
+预期:截图窗口展示主屏画面,底部工具栏包含箭头、文本、保存图片、复制图片;保存的 PNG 含标注且可正常打开;复制内容为图片。
+
 ## 7. 验收结果记录
 
 | 场景 | 结果 | 备注 |
@@ -128,10 +137,12 @@ npm run build     # electron-vite build + electron-builder --win
 | G 崩溃恢复 | ☐ | |
 | H 界面与体验 | ☐ | |
 | I 可用性与性能 | ☐ | |
+| J 截屏与标注 | ☐ | |
 
 ## 8. 产物位置
 
 - 录制文件: `<storageDirectory>/ScreenRecording_*.mp4`
+- 截图文件: `<storageDirectory>/Screenshot_*.png`
 - 设置文件: `%APPDATA%\dsh-screen-recorder\app-data\settings.json`(若该位置不可写,应用会自动回退到 `%TEMP%\dsh-screen-recorder`)
 - 会话标记: `%APPDATA%\dsh-screen-recorder\app-data\recording-session.json`(仅录制期间存在)
 - 构建产物: `dist/`

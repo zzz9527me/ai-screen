@@ -36,3 +36,23 @@ export async function uniqueFilePath(
     counter += 1
   }
 }
+
+export function buildScreenshotFileName(date: Date): string {
+  return `Screenshot_${formatTimestamp(date)}.png`
+}
+
+export async function uniqueScreenshotPath(
+  directory: string,
+  date: Date,
+  options: UniquePathOptions = {}
+): Promise<string> {
+  const exists = options.exists ?? ((candidate: string) => fs.existsSync(candidate))
+  const stamp = formatTimestamp(date)
+  let counter = 0
+  for (;;) {
+    const suffix = counter === 0 ? '' : `_${counter}`
+    const candidate = path.join(directory, `Screenshot_${stamp}${suffix}.png`)
+    if (!(await exists(candidate))) return candidate
+    counter += 1
+  }
+}

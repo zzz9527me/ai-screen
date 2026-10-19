@@ -17,7 +17,7 @@ import {
   showSaveNotification
 } from './services/notifications'
 import { RecordingSessionManager } from './services/recordingSession'
-import { capturePrimaryScreen, cropScreenshot } from './services/screenshot'
+import { capturePrimaryScreen } from './services/screenshot'
 import { SettingsStore } from './services/settingsStore'
 import { ShortcutManager } from './services/shortcutManager'
 import { AppTray } from './tray'
@@ -27,7 +27,7 @@ import {
   primeDisplayMediaSource
 } from './windows/captureWindow'
 import { showModeDialog } from './windows/modeDialog'
-import { showRegionSelector } from './windows/regionOverlay'
+import { createPinWindow } from './windows/pinWindow'
 import { getScreenshotWindow, showScreenshotEditor } from './windows/screenshotWindow'
 import { showSettingsWindow } from './windows/settingsWindow'
 
@@ -110,15 +110,8 @@ if (!gotLock) {
     if (screenshotBusy) return
     screenshotBusy = true
     try {
-      const region = await showRegionSelector()
-      if (!region) return
       const image = await capturePrimaryScreen()
-      const display = screen.getPrimaryDisplay()
-      const cropped = cropScreenshot(image, region, {
-        width: display.size.width,
-        height: display.size.height
-      })
-      showScreenshotEditor(cropped)
+      showScreenshotEditor(image)
     } catch (error) {
       showErrorNotification(
         `截屏失败: ${error instanceof Error ? error.message : String(error)}`
@@ -236,6 +229,9 @@ if (!gotLock) {
         if (shortcutManager && !shortcutManager.update(shortcut)) {
           showErrorNotification(`截屏快捷键 ${shortcut} 注册失败,请到设置中换一个组合`)
         }
+      },
+      pinScreenshot: (image) => {
+        createPinWindow(image)
       }
     })
 

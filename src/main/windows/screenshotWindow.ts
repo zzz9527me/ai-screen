@@ -6,6 +6,10 @@ import { createWindow, loadPage, showWhenReady } from './windowFactory'
 
 let screenshotWindow: BrowserWindow | null = null
 
+/**
+ * Snipaste-style overlay: freeze the primary display, cover it with a borderless
+ * fullscreen layer, and let the renderer draw the selection and annotations.
+ */
 export function showScreenshotEditor(image: ScreenshotImagePayload): void {
   if (screenshotWindow && !screenshotWindow.isDestroyed()) {
     screenshotWindow.show()
@@ -14,19 +18,21 @@ export function showScreenshotEditor(image: ScreenshotImagePayload): void {
   }
 
   const display = screen.getPrimaryDisplay()
-  const maxWidth = Math.max(480, Math.floor(display.workArea.width * 0.92))
-  const maxHeight = Math.max(360, Math.floor(display.workArea.height * 0.9) - 76)
-  const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height)
-  const width = Math.max(480, Math.round(image.width * scale))
-  const height = Math.max(320, Math.round(image.height * scale) + 76)
-
+  const bounds = display.bounds
   const win = createWindow({
-    title: `${OWN_WINDOW_PREFIX} 截屏编辑`,
-    width,
-    height,
+    title: `${OWN_WINDOW_PREFIX} 截屏`,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    frame: false,
     resizable: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    fullscreen: false,
     useContentSize: true,
-    backgroundColor: '#0b0b0d'
+    backgroundColor: '#000000',
+    webPreferences: { backgroundThrottling: false }
   })
   screenshotWindow = win
   const webContentsId = win.webContents.id
@@ -41,6 +47,16 @@ export function showScreenshotEditor(image: ScreenshotImagePayload): void {
   })
   loadPage(win, 'screenshot')
   showWhenReady(win)
+  win.once('show', () => {
+    if (win.isDestroyed()) return
+    win.setContentBounds({
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height
+    })
+    win.focus()
+  })
 }
 
 export function getScreenshotWindow(): BrowserWindow | null {

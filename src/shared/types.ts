@@ -80,6 +80,8 @@ export interface ScreenshotImagePayload {
   dataUrl: string
   width: number
   height: number
+  displayWidth?: number
+  displayHeight?: number
 }
 
 export type ScreenshotSaveResult =
@@ -87,6 +89,8 @@ export type ScreenshotSaveResult =
   | { ok: false; message: string }
 
 export type ScreenshotCopyResult = { ok: true } | { ok: false; message: string }
+
+export type ScreenshotPinResult = { ok: true } | { ok: false; message: string }
 
 export interface CaptureBeginPayload {
   sessionId: string
@@ -154,6 +158,7 @@ export interface DshApi {
     onImage(cb: (payload: ScreenshotImagePayload) => void): Unsubscribe
     save(dataUrl: string): Promise<ScreenshotSaveResult>
     copy(dataUrl: string): Promise<ScreenshotCopyResult>
+    pin(dataUrl: string): Promise<ScreenshotPinResult>
   }
   dialog: {
     close(): void

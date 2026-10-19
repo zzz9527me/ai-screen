@@ -27,7 +27,8 @@ export default defineConfig({
           settings: resolve('src/renderer/settings/index.html'),
           overlay: resolve('src/renderer/overlay/index.html'),
           capture: resolve('src/renderer/capture/index.html'),
-          screenshot: resolve('src/renderer/screenshot/index.html')
+          screenshot: resolve('src/renderer/screenshot/index.html'),
+          pin: resolve('src/renderer/pin/index.html')
         }
       }
     }

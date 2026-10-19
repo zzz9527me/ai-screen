@@ -12,6 +12,7 @@ export interface CreateWindowOptions {
   transparent?: boolean
   alwaysOnTop?: boolean
   skipTaskbar?: boolean
+  fullscreen?: boolean
   backgroundColor?: string
   useContentSize?: boolean
   webPreferences?: WebPreferences
@@ -45,6 +46,7 @@ export function createWindow(options: CreateWindowOptions): BrowserWindow {
     transparent: options.transparent ?? false,
     alwaysOnTop: options.alwaysOnTop ?? false,
     skipTaskbar: options.skipTaskbar ?? false,
+    fullscreen: options.fullscreen ?? false,
     backgroundColor: options.backgroundColor ?? '#141414',
     useContentSize: options.useContentSize ?? false,
     webPreferences: secureWebPreferences(options.webPreferences)
@@ -56,7 +58,7 @@ export function createWindow(options: CreateWindowOptions): BrowserWindow {
 
 export function loadPage(
   win: BrowserWindow,
-  page: 'mode' | 'settings' | 'overlay' | 'capture' | 'screenshot',
+  page: 'mode' | 'settings' | 'overlay' | 'capture' | 'screenshot' | 'pin',
   query?: Record<string, string>
 ): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL']

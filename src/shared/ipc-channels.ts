@@ -9,6 +9,7 @@ export const IPC = {
   DialogClose: 'dialog:close',
   ScreenshotSave: 'screenshot:save',
   ScreenshotCopy: 'screenshot:copy',
+  ScreenshotPin: 'screenshot:pin',
 
   CaptureReady: 'capture:ready',
   CaptureChunk: 'capture:chunk',

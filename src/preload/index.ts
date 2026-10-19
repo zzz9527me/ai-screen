@@ -51,7 +51,8 @@ const api: DshApi = {
       return () => screenshotImageListeners.delete(cb)
     },
     save: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotSave, { dataUrl }),
-    copy: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotCopy, { dataUrl })
+    copy: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotCopy, { dataUrl }),
+    pin: (dataUrl: string) => ipcRenderer.invoke(IPC.ScreenshotPin, { dataUrl })
   },
   dialog: {
     close: () => ipcRenderer.send(IPC.DialogClose)

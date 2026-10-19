@@ -31,6 +31,7 @@ export interface IpcContext {
   broadcastSettings(settings: Settings): void
   validateShortcut?(shortcut: string): boolean
   applyShortcut?(shortcut: string): void
+  pinScreenshot?(image: Electron.NativeImage): void
 }
 
 const allowedSenders = new Set<number>()
@@ -187,6 +188,23 @@ export function registerIpc(context: IpcContext): void {
       return {
         ok: false,
         message: `复制图片失败: ${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+  })
+
+  ipcMain.handle(IPC.ScreenshotPin, async (event, payload: unknown) => {
+    assertAllowed(event)
+    const parsed = screenshotPayloadSchema.safeParse(payload)
+    if (!parsed.success) return { ok: false, message: '图片数据无效' }
+    try {
+      const image = nativeImage.createFromDataURL(parsed.data.dataUrl)
+      if (image.isEmpty()) return { ok: false, message: '图片数据为空' }
+      context.pinScreenshot?.(image)
+      return { ok: true }
+    } catch (error) {
+      return {
+        ok: false,
+        message: `贴图失败: ${error instanceof Error ? error.message : String(error)}`
       }
     }
   })
